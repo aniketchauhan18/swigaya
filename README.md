@@ -13,6 +13,42 @@ approval.
 
 > **Important:** Swigaya never pays for or places an order.
 
+## Introductory video
+
+The repository includes a narrated product pitch walkthrough, approximately
+1 minute 44 seconds long, at
+[`public/swigaya-intro.mp4`](./public/swigaya-intro.mp4). It is kept as a
+standalone repository asset and is not embedded in the web UI. The video uses
+the supplied Swigaya product screenshots, explains the constraint-driven
+planning flow and live Food/Instamart comparison, includes the supplied
+architecture diagram, and closes with the explicit cart approval boundary.
+
+### Video details
+
+| Property | Value |
+| --- | --- |
+| Format | MP4 |
+| Duration | Approximately 1 minute 44 seconds |
+| Video | H.264, `yuv420p`, 1920 × 1080 |
+| Audio | Narrated AAC stereo track |
+| Source | Supplied Swigaya product screenshots and architecture diagram |
+
+To watch the video locally after cloning the project:
+
+```bash
+open public/swigaya-intro.mp4
+```
+
+On Linux, use `xdg-open public/swigaya-intro.mp4`; on Windows, use
+`start public/swigaya-intro.mp4`. The generated video is intentionally ignored
+by Git, so it must be restored or copied into `public/` locally rather than
+uploaded with the source repository.
+
+The repository does not contain a checked-in catalog-image library. Product
+images in the application are supplied by the live Swiggy adapter when
+available; the walkthrough therefore uses rendered Swigaya UI and architecture
+visuals rather than presenting unrelated stock photography as application data.
+
 ---
 
 ## Contents
@@ -229,6 +265,14 @@ Swigaya implements a zero-trust model regarding autonomous purchasing, external 
 - **Component Primitives**: Base UI (`@base-ui/react`) and shadcn/ui (`style: base-nova`)
 - **Styling**: Tailwind CSS v4 with `@tailwindcss/postcss`
 - **Iconography**: Tabler Icons (`@tabler/icons-react`)
+- **Component naming**: Source component files use kebab-case, for example
+  `components/cart-view.tsx` and `components/explore-menu.tsx`.
+- **Responsive cards**: Catalog cards use fixed responsive image frames, image
+  fallbacks, and touch-friendly full-width actions. Cart rows stack safely on
+  narrow screens without hover-only interactions.
+- **Location-aware options**: The results page omits the Instamart card when no
+  grocery plan is available for the user's location, inventory, diet, budget,
+  or time constraints.
 
 ### Data and Storage
 
@@ -714,7 +758,15 @@ Retrieves the current cart contents from Swiggy.
 #### Update Cart Item Quantity
 `POST /api/cart/update`
 
-Adjusts the quantity of a specific item in the cart (range: 1 to 20).
+Adjusts the quantity of a specific item in the cart (range: 1 to 20). The
+server returns the complete updated cart, including all existing food and
+Instamart items.
+
+Increasing a quantity preserves every other item. For live Swiggy food carts,
+the adapter sends the complete existing restaurant cart with only the selected
+line's quantity changed, because the provider may interpret a partial update as
+a replacement. Instamart updates similarly merge the full existing grocery
+cart before writing it back.
 
 **Request Body**:
 ```json
@@ -728,7 +780,9 @@ Adjusts the quantity of a specific item in the cart (range: 1 to 20).
 #### Remove Item from Cart
 `POST /api/cart/remove`
 
-Removes an item from the cart (equivalent to setting quantity to 0).
+Removes an item from the cart (equivalent to setting quantity to 0). The
+response contains the complete remaining cart rather than only the removed
+item's source.
 
 **Request Body**:
 ```json
@@ -822,8 +876,9 @@ bun run test
 ```
 
 Current test suite structure:
+
 - `tests/pipeline.test.ts`: End-to-end plan generation, catalog price verification, constraints enforcement, dietary compatibility checks, and heuristic fallback.
-- `tests/cart.test.ts`: Stored item integrity, single-approval enforcement, idempotency, quantity caps, and audit log generation.
+- `tests/cart.test.ts`: Stored item integrity, single-approval enforcement, idempotency, quantity caps, audit logging, and food/grocery quantity increments that preserve other items.
 - `tests/llm.test.ts`: JSON schema enforcement, multi-step error repair, Groq client transient error retries, and HTTP 429 status conversion.
 - `tests/units.test.ts`: WebCrypto AES-GCM encryption/decryption, PKCE challenge computation, weekly aggregation math, and KV caching layer.
 
@@ -840,7 +895,8 @@ bun run typecheck
 1. **User Identity Scope**: The current release operates under a single demo user identity (`demo-user`). Multi-tenant session isolation is ready via the database schema but relies on standard cookie/session management in future revisions.
 2. **Delivery Fee Heuristics**: Final delivery surge fees, platform fees, and packaging taxes are determined at checkout by Swiggy's billing engine. Swigaya applies baseline estimates (e.g., Rs 30 for restaurant food orders; Rs 25 for Instamart orders under Rs 199 threshold) for comparison modeling.
 3. **Menu Variations and Customizations**: Complex dish variations requiring mandatory modal selections (e.g., custom pizza crusts or beverage size add-ons) are filtered out during candidate selection to avoid staging ambiguous items into the cart.
-4. **Instamart Cart Behavior**: Instamart's MCP update interface replaces the active cart payload; Swigaya reads the existing cart, merges line items, and commits the unified state.
+4. **Cart quantity updates**: Plus actions increase only the selected item's quantity and preserve all other food and Instamart items. Food updates send the complete restaurant cart to avoid provider-side replacement behavior. Live cart responses are re-read after each mutation so the UI reflects the complete cart.
+5. **Instamart Cart Behavior**: Instamart's MCP update interface replaces the active cart payload; Swigaya reads the existing cart, merges line items, and commits the unified state.
 
 ---
 
@@ -861,6 +917,14 @@ bun run typecheck
 ### Database Errors during Local Development
 - Cause: Local D1 database state is out of sync with Prisma schema.
 - Solution: Run `bun run db:migrate:local` to reapply all SQL migrations to the local Miniflare instance.
+
+### Cart quantity does not change
+- Cause: The external cart provider may reject an update or return a partial
+  cart response.
+- Solution: Confirm that the item belongs to the selected source (`food` or
+  `grocery`), then retry. Swigaya now preserves the full cart when increasing,
+  decreasing, or removing an item and reports provider failures instead of
+  treating them as successful updates.
 
 ---
 
