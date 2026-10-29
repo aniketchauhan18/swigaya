@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+  runtime  = "cloudflare"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  requests    Request[]
+  connections SwiggyConnection[]
+}
+
+model Request {
+  id                     String   @id @default(cuid())
+  userId                 String
+  rawPrompt              String
+  parsedConstraintsJson  String?
+  recommendationJson     String?
+  // PLANNED | NEEDS_INFO
+  status                 String   @default("PLANNED")
+  // "food" | "grocery" | null until the user approves a cart add
+  selectedOption         String?
+  createdAt              DateTime @default(now())
+
+  user  User                 @relation(fields: [userId], references: [id])
+  items RecommendationItem[]
+  cartEvents CartEvent[]
+
+  @@index([userId, createdAt])
+}
+
+model RecommendationItem {
+  id             String   @id @default(cuid())
+  requestId      String
+  // FOOD | GROCERY
+  source         String
+  externalItemId String
+  name           String
+  quantity       Int
+  priceInr       Int
+  createdAt      DateTime @default(now())
+
+  request Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+}
+
+model CartEvent {
+  id          String   @id @default(cuid())
+  requestId   String?
+  // ADD | UPDATE | REMOVE | VIEW
+  action      String
+  payloadJson String
+  createdAt   DateTime @default(now())
+
+  request Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+}
+
+// Live-mode Swiggy MCP OAuth state. Tokens are AES-GCM encrypted before storage.
+model SwiggyConnection {
+  id                  String    @id @default(cuid())
+  userId              String
+  // Cached dynamic client registration (RFC 7591)
+  clientId            String?
+  accessTokenEnc      String?
+  refreshTokenEnc     String?
+  expiresAt           DateTime?
+  scope               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId])
+}

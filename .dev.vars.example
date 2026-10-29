@@ -1,0 +1,11 @@
+# Copy to .dev.vars for local development (never commit .dev.vars).
+# In production use: wrangler secret put GROQ_API_KEY (etc).
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-120b
+GROQ_FAST_MODEL=openai/gpt-oss-20b
+SWIGGY_MCP_ENV=live
+SWIGGY_MCP_CLIENT_ID=
+SWIGGY_MCP_CLIENT_SECRET=
+SWIGGY_MCP_REDIRECT_URI=http://localhost:5173/api/swiggy/auth/callback
+# 32 random bytes, base64 (openssl rand -base64 32). Encrypts stored Swiggy tokens.
+TOKEN_ENC_KEY=

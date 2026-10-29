@@ -1,0 +1,50 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "swigaya",
+  "compatibility_date": "2026-10-29",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "main": "vinext/server/fetch-handler",
+  "assets": {
+    "directory": "dist/client",
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/*",
+      "!/_next/static/*",
+      "!/*/_next/static/*"
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  // Non-secret configuration. Secrets (GROQ_API_KEY, TOKEN_ENC_KEY, SWIGGY_MCP_CLIENT_SECRET)
+  // are set via `wrangler secret put` in production and `.dev.vars` locally.
+  "vars": {
+    "GROQ_MODEL": "openai/gpt-oss-120b",
+    "GROQ_FAST_MODEL": "openai/gpt-oss-20b",
+    "SWIGGY_MCP_ENV": "live",
+    "SWIGGY_MCP_CLIENT_ID": "",
+    "SWIGGY_MCP_REDIRECT_URI": "http://localhost:5173/api/swiggy/auth/callback"
+  },
+  // Local dev uses miniflare-simulated D1/KV. For deploy, run:
+  //   wrangler d1 create swigaya-db        -> paste database_id below
+  //   wrangler kv namespace create CACHE   -> paste id below
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "swigaya-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "00000000000000000000000000000000"
+    }
+  ]
+}
